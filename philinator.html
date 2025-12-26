@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Philinator</title>
+<style>
+    body {
+        margin: 0;
+        background: black;
+        overflow: hidden;
+        font-family: monospace;
+        color: #0f0;
+        cursor: none;
+    }
+
+    #game {
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+    }
+
+    #player, #philinator {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+    }
+
+    #player {
+        background: #0f0;
+        z-index: 2;
+    }
+
+    #philinator {
+        background: red;
+        width: 26px;
+        height: 26px;
+        z-index: 1;
+    }
+
+    #darkness {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        background: radial-gradient(circle 120px at center, transparent 0%, rgba(0,0,0,0.98) 70%);
+        z-index: 5;
+    }
+
+    #ui {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        z-index: 6;
+        font-size: 14px;
+    }
+
+    #message {
+        position: absolute;
+        top: 40%;
+        width: 100%;
+        text-align: center;
+        font-size: 32px;
+        display: none;
+        z-index: 10;
+    }
+</style>
+</head>
+<body>
+
+<div id="game">
+    <div id="player"></div>
+    <div id="philinator"></div>
+    <div id="darkness"></div>
+
+    <div id="ui">
+        Fear: <span id="fear">0</span><br>
+        Night: <span id="night">1</span><br>
+        Hide (H)
+    </div>
+
+    <div id="message"></div>
+</div>
+
+<script>
+/* ------------------ STATE ------------------ */
+const player = document.getElementById("player");
+const phil = document.getElementById("philinator");
+const dark = document.getElementById("darkness");
+const fearEl = document.getElementById("fear");
+const nightEl = document.getElementById("night");
+const msg = document.getElementById("message");
+
+let playerPos = { x: 100, y: 100 };
+let philPos = { x: 700, y: 400 };
+
+let fear = 0;
+let hiding = false;
+let alive = true;
+
+let night = 1;
+let nightTimer = 0;
+let nightLength = 1800; // frames
+
+let philSpeed = 1.6;
+let philRange = 280;
+
+/* ------------------ INPUT ------------------ */
+const keys = {};
+let mouse = { x: 0, y: 0 };
+
+document.addEventListener("keydown", e => {
+    keys[e.key.toLowerCase()] = true;
+    if (e.key.toLowerCase() === "h") hiding = !hiding;
+});
+
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+document.addEventListener("mousemove", e => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+});
+
+/* ------------------ PLAYER ------------------ */
+function movePlayer() {
+    if (!alive || hiding) return;
+
+    let speed = 3;
+    if (keys["w"]) playerPos.y -= speed;
+    if (keys["s"]) playerPos.y += speed;
+    if (keys["a"]) playerPos.x -= speed;
+    if (keys["d"]) playerPos.x += speed;
+
+    playerPos.x = Math.max(0, Math.min(innerWidth - 20, playerPos.x));
+    playerPos.y = Math.max(0, Math.min(innerHeight - 20, playerPos.y));
+}
+
+/* ------------------ PHILINATOR AI ------------------ */
+function movePhilinator() {
+    if (!alive) return;
+
+    let dx = playerPos.x - philPos.x;
+    let dy = playerPos.y - philPos.y;
+    let dist = Math.hypot(dx, dy);
+
+    if (dist < philRange && !hiding) {
+        philPos.x += dx / dist * philSpeed;
+        philPos.y += dy / dist * philSpeed;
+        fear += 0.5 + night * 0.1;
+    } else {
+        philPos.x += (Math.random() - 0.5);
+        philPos.y += (Math.random() - 0.5);
+    }
+
+    if (dist < 18 && !hiding) die();
+}
+
+/* ------------------ FEAR ------------------ */
+function updateFear() {
+    fear += 0.02; // darkness tax
+    fear = Math.min(100, fear);
+    fearEl.textContent = Math.floor(fear);
+
+    if (fear > 75) {
+        document.body.style.background = "#120000";
+    }
+}
+
+/* ------------------ DARKNESS ------------------ */
+function updateDarkness() {
+    dark.style.background =
+        `radial-gradient(circle 120px at ${mouse.x}px ${mouse.y}px, transparent 0%, rgba(0,0,0,0.98) 70%)`;
+}
+
+/* ------------------ NIGHT SYSTEM ------------------ */
+function updateNight() {
+    nightTimer++;
+
+    if (nightTimer > nightLength) {
+        night++;
+        nightEl.textContent = night;
+        nightTimer = 0;
+        nightLength += 600;
+
+        philSpeed += 0.4;
+        philRange += 40;
+
+        msg.style.display = "block";
+        msg.textContent = `NIGHT ${night}`;
+        setTimeout(() => msg.style.display = "none", 2000);
+    }
+}
+
+/* ------------------ RENDER ------------------ */
+function render() {
+    player.style.left = playerPos.x + "px";
+    player.style.top = playerPos.y + "px";
+
+    phil.style.left = philPos.x + "px";
+    phil.style.top = philPos.y + "px";
+
+    player.style.opacity = hiding ? 0.2 : 1;
+}
+
+/* ------------------ DEATH ------------------ */
+function die() {
+    alive = false;
+    msg.style.display = "block";
+    msg.textContent = "THE PHILINATOR GOT YOU";
+}
+
+/* ------------------ LOOP ------------------ */
+function loop() {
+    movePlayer();
+    movePhilinator();
+    updateFear();
+    updateDarkness();
+    updateNight();
+    render();
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
